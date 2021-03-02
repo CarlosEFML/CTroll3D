@@ -27,8 +27,8 @@
 #define ROW_STRIDE (WIDTH * DEPTH/8)
 
 #define SOC_ALIGN       0x1000
-//#define SOC_BUFFERSIZE  0x100000
-#define SOC_BUFFERSIZE  (1024 * 128)
+#define SOC_BUFFERSIZE  0x100000
+//#define SOC_BUFFERSIZE  (1024 * 128)
 
 static u32 *SOC_buffer = NULL;
 
@@ -199,6 +199,14 @@ void sendInputs(int socket) {
 
 	hidTouchRead(&touch);
 	send(socket, &touch, sizeof(touch), 0);
+
+	accelVector accel;
+	hidAccelRead(&accel);
+	send(socket, &accel, 6, 0);
+
+	angularRate gyro;
+	hidGyroRead(&gyro);
+	send(socket, &gyro, 6, 0);
 }
 
 int updateSquare(unsigned char *dst, unsigned char *src, int rowStride) {
@@ -217,21 +225,17 @@ int updateSquare(unsigned char *dst, unsigned char *src, int rowStride) {
 }
 
 typedef struct {
-  char type;
-  int rd;
-} TypeBuf;
-TypeBuf dType;
-
-typedef struct {
-  long long sz;
+  u8 type;
+  u8 requireConfirmation;
+  u16 sz;
   unsigned char diffMap[((WIDTH / 8) * (HEIGHT / 8)) / 8];
-  int rd;
+  u16 rd;
 } HeaderBuf;
 HeaderBuf header;
 
 typedef struct {
   unsigned char *data;
-  int rd;
+  u16 rd;
 } DataBuf;
 DataBuf data;
 
@@ -242,7 +246,6 @@ int main(int argc, char **argv) {
 	int ret;
 	char *inputBuf = 0;
 	int frame = 0;
-
 
 	gfxInitDefault();
 
@@ -276,13 +279,14 @@ int main(int argc, char **argv) {
         gspWaitForVBlank();
         hidScanInput();
 
+	HIDUSER_EnableAccelerometer();
+	HIDUSER_EnableGyroscope();
+
 	int sock = createServer(PORT);
 	int socketInputs = createServer(PORT_INPUTS);
-
-	int received = 0;
 	int confirmationsDisabled = 0;
 
-	dType.rd = 0;
+	header.rd = 0;
 	while(aptMainLoop() && (socket > 0)) {
 		if ((lastButtons & KEY_START) && (lastButtons & KEY_SELECT)) break;
 		if ((lastButtons & KEY_L) && (lastButtons & KEY_R) && (lastButtons & KEY_DDOWN) && (touch.px > 0)) {
@@ -292,7 +296,6 @@ int main(int argc, char **argv) {
 		if ((lastButtons & KEY_L) && (lastButtons & KEY_R) && (lastButtons & KEY_DUP) && (touch.px > 0) && confirmationsDisabled) {
 			printf("Bottom screen mirror ENABLED\n");
 			confirmationsDisabled = 0;
-			received = 0;
 			char b = 1;
 			send(sock, &b, 1, 0);
                 }
@@ -300,30 +303,35 @@ int main(int argc, char **argv) {
                 gfxSwapBuffers();
 	        gspWaitForVBlank();
 
-
-		if (dType.rd < sizeof(dType.type)) {
-			dType.rd = readData(sock, (char *)&dType.type, sizeof(dType.type), dType.rd);
-			if (dType.rd < sizeof(dType.type)) {
+		if (header.rd < 2) {
+			header.rd = readData(sock, (char *)&header, 2, header.rd);
+			if (header.rd < 2) {
 				sendInputs(socketInputs);
 				continue;
 			}
-			header.rd = 0;
-		}
-
-		if (dType.type == 0) {
-			++received;
-		}
-		else if (dType.type == 1) {
-			if (header.rd < sizeof(header.sz)) {
-				header.rd = readData(sock, (char *)&header, sizeof(header.sz), header.rd);
-				if (header.rd < sizeof(header.sz)) {
-					sendInputs(socketInputs);
-					continue;
-				}
-				data.rd = 0;
-				data.data = (char *) realloc(data.data, header.sz);
+			if (!confirmationsDisabled && header.requireConfirmation) {
+				char b = 1;
+				send(sock, &b, 1, 0);
 			}
+			data.rd = 0;
+		}
 
+		u16 headerSz = 2;
+		if (header.type == 1) headerSz = 4;
+		else if (header.type == 2) headerSz = 4 + sizeof(header.diffMap);
+
+		if (header.rd < headerSz) {
+			header.rd = readData(sock, (char *)&header, headerSz, header.rd);
+			if (header.rd < headerSz) {
+				sendInputs(socketInputs);
+				continue;
+			}
+			data.data = (char *) realloc(data.data, header.sz);
+                }
+
+		if (header.type == 0) {
+		}
+		else if (header.type == 1) {
 			if (header.sz > 0) {
 				if (data.rd < header.sz) {
 					data.rd = readData(sock, (char *)data.data, header.sz, data.rd);
@@ -333,25 +341,11 @@ int main(int argc, char **argv) {
 					}
 				}
 
- 				++received;
-printf("FULL\n");
-
 				read_JPEG_buf(data.data, header.sz, outputBuf);
-//		                gspWaitForVBlank();
 				memcpy(fb, outputBuf, WIDTH * HEIGHT * DEPTH/8);
 			}
 		}
-		else if (dType.type == 2) {
-			if (header.rd < (sizeof(header.sz) + sizeof(header.diffMap))) {
-				header.rd = readData(sock, (char *)&header, sizeof(header.sz) + sizeof(header.diffMap), header.rd);
-				if (header.rd < (sizeof(header.sz) + sizeof(header.diffMap))) {
-					sendInputs(socketInputs);
-					continue;
-				}
-				data.rd = 0;
-				data.data = (char *) realloc(data.data, header.sz);
-			}
-
+		else if (header.type == 2) {
 			if (header.sz > 0) {
 				if (data.rd < header.sz) {
 					data.rd = readData(sock, (char *)data.data, header.sz, data.rd);
@@ -360,9 +354,6 @@ printf("FULL\n");
 						continue;
 					}
 				}
-
- 				++received;
-printf("DIFF\n");
 
 				read_JPEG_buf(data.data, header.sz, outputBuf);
 			        unsigned char *dest = fb;
@@ -385,16 +376,7 @@ printf("DIFF\n");
 			}
 		}
 
-		if (received == 1) {
-			if (!confirmationsDisabled) {
-				char b = 1;
-				send(sock, &b, 1, 0);
-			}
-		} else if (received == 2) {
-			received = 0;
-		}
-
-		dType.rd = 0;
+		header.rd = 0;
 		sendInputs(socketInputs);
 
 	}
