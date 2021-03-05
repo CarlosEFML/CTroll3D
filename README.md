@@ -26,17 +26,23 @@ How to use:
 
 
 You can download the CTroll3D.3dsx from github: https://github.com/CarlosEFML/CTroll3D/releases/download/0.0.1/CTroll3D.3dsx
+
 Or clone/download the source and build it yourself.
 
 If you are on macOS 11 or later (sorry, this is my environment and i can't build for windows/linux), you can download a binary release from: https://github.com/CarlosEFML/citra/releases/download/0.0.1/citra-portable-macOS11.zip
+
 Otherwise, fell free do clone/download the source code and follow the instructions to build the emulator.
 
 Building for windows: https://citra-emu.org/wiki/building-for-windows/
+
 Building for linux: https://citra-emu.org/wiki/building-for-linux/
+
 Building for mac: https://citra-emu.org/wiki/building-for-macos/
 
 
+
 CTroll3D github: https://github.com/CarlosEFML/CTroll3D
+
 Citra (with CTroll3D support) github: https://github.com/CarlosEFML/citra
 
 
