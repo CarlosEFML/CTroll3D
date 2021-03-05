@@ -19,4 +19,5 @@ In some cases, the bottom screen mirroring can slow down your emulation, and sho
 How to Use:
 
 1 - Open the CTroll3D homebrew on your 3ds
+
 2 - On Citra, access the menu option: Tools -> Connect CTroll3D and enter your 3DS IP Address 
