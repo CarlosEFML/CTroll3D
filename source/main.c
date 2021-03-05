@@ -255,8 +255,6 @@ int main(int argc, char **argv) {
 
 	consoleInit(GFX_TOP, NULL);
 
-	printf ("\nCTroll3D\n");
-
 	// allocate buffer for SOC service
 	SOC_buffer = (u32*)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
 
@@ -266,18 +264,23 @@ int main(int argc, char **argv) {
 
 	// Now intialise soc:u service
 	if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
-    	failExit("socInit: 0x%08X\n", (unsigned int)ret);
+		failExit("socInit: 0x%08X\n", (unsigned int)ret);
 	}
 
 	// register socShutdown to run at exit
 	// atexit functions execute in reverse order so this runs before gfxExit
 	atexit(socShutdown);
 
-        gfxSetDoubleBuffering(GFX_BOTTOM, false);
-        u8* fb = gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, NULL, NULL);
+	gfxSetDoubleBuffering(GFX_BOTTOM, false);
+	u8* fb = gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, NULL, NULL);
 
-        gspWaitForVBlank();
-        hidScanInput();
+
+	uint32_t ip = gethostid();
+	unsigned char *ipptr = (unsigned char *)&ip;
+	printf ("\nCTroll3D\nIP: %d.%d.%d.%d\n", ipptr[0], ipptr[1], ipptr[2], ipptr[3]);
+
+	gspWaitForVBlank();
+	hidScanInput();
 
 	HIDUSER_EnableAccelerometer();
 	HIDUSER_EnableGyroscope();
@@ -298,10 +301,10 @@ int main(int argc, char **argv) {
 			confirmationsDisabled = 0;
 			char b = 1;
 			send(sock, &b, 1, 0);
-                }
-                gfxFlushBuffers();
-                gfxSwapBuffers();
-	        gspWaitForVBlank();
+		}
+		gfxFlushBuffers();
+		gfxSwapBuffers();
+		gspWaitForVBlank();
 
 		if (header.rd < 2) {
 			header.rd = readData(sock, (char *)&header, 2, header.rd);
@@ -327,7 +330,7 @@ int main(int argc, char **argv) {
 				continue;
 			}
 			data.data = (char *) realloc(data.data, header.sz);
-                }
+		}
 
 		if (header.type == 0) {
 		}
@@ -356,8 +359,8 @@ int main(int argc, char **argv) {
 				}
 
 				read_JPEG_buf(data.data, header.sz, outputBuf);
-			        unsigned char *dest = fb;
-			        unsigned char *src = outputBuf;
+				unsigned char *dest = fb;
+				unsigned char *src = outputBuf;
 
 				int mapMask = 0x01;
 				int mapPos = 0;
@@ -378,10 +381,8 @@ int main(int argc, char **argv) {
 
 		header.rd = 0;
 		sendInputs(socketInputs);
-
 	}
 	close(socket);
-
 
 	return 0;
 }
