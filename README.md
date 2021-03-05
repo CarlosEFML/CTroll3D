@@ -22,4 +22,4 @@ How to use:
 
 1 - Open the CTroll3D homebrew on your 3ds
 
-2 - On Citra, access the menu option: Tools -> Connect CTroll3D and enter your 3DS IP Address 
+2 - On Citra, access the menu option: Tools -> Connect CTroll3D, and enter your 3DS IP Address 
