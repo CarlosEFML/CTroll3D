@@ -16,7 +16,10 @@ One advice: glReadPixels and VSync doesn't perform too well. So, to increase  th
 
 In some cases, the bottom screen mirroring can slow down your emulation, and should be disabled by pressing L + R + DOWN + click on Touch (it can be enabled by L + R + UP + click on Touch).
 
+
+
 How to use:
 
 1 - Open the CTroll3D homebrew on your 3ds
+
 2 - On Citra, access the menu option: Tools -> Connect CTroll3D and enter your 3DS IP Address 
