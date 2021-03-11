@@ -320,7 +320,7 @@ int main(int argc, char **argv) {
 		}
 
 		u16 headerSz = 2;
-		if (header.type == 1) headerSz = 4;
+		if ((header.type == 1) || (header.type == 3) || (header.type == 4)) headerSz = 4;
 		else if (header.type == 2) headerSz = 4 + sizeof(header.diffMap);
 
 		if (header.rd < headerSz) {
@@ -375,6 +375,36 @@ int main(int argc, char **argv) {
 						dest += 8 * 3;
 					}
 					dest += (8 * ROW_STRIDE) - ROW_STRIDE;
+				}
+			}
+		}
+		else if ((header.type == 3) || (header.type == 4)) {
+			if (header.sz > 0) {
+				if (data.rd < header.sz) {
+					data.rd = readData(sock, (char *)data.data, header.sz, data.rd);
+					if (data.rd < header.sz) {
+						sendInputs(socketInputs);
+						continue;
+					}
+				}
+
+				read_JPEG_buf(data.data, header.sz, outputBuf);
+
+				char *in = outputBuf;
+				char *out = fb;
+				char skip = !(header.type & 1);
+				for (int j=0; j<HEIGHT; j++) {
+					for (int i=0; i<WIDTH; i++) {
+						if (!skip) {
+							out[0] = in[0];
+							out[1] = in[1];
+							out[2] = in[2];
+							in+=3;
+						}
+						out+=3;
+						skip=!skip;
+					}
+					skip=!skip;
 				}
 			}
 		}
