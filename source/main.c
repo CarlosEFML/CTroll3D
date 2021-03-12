@@ -225,8 +225,7 @@ int updateSquare(unsigned char *dst, unsigned char *src, int rowStride) {
 }
 
 typedef struct {
-  u8 type;
-  u8 requireConfirmation;
+  u16 type;
   u16 sz;
   unsigned char diffMap[((WIDTH / 8) * (HEIGHT / 8)) / 8];
   u16 rd;
@@ -245,7 +244,7 @@ int main(int argc, char **argv) {
 //---------------------------------------------------------------------------------
 	int ret;
 	char *inputBuf = 0;
-	int frame = 0;
+	u8 frame = 0;
 
 	gfxInitDefault();
 
@@ -292,15 +291,14 @@ int main(int argc, char **argv) {
 	header.rd = 0;
 	while(aptMainLoop() && (socket > 0)) {
 		if ((lastButtons & KEY_START) && (lastButtons & KEY_SELECT)) break;
-		if ((lastButtons & KEY_L) && (lastButtons & KEY_R) && (lastButtons & KEY_DDOWN) && (touch.px > 0)) {
+		if ((lastButtons & KEY_L) && (lastButtons & KEY_R) && (lastButtons & KEY_DDOWN) && (touch.px > 0) && !confirmationsDisabled) {
 			printf("Bottom screen mirror DISABLED\n");
 			confirmationsDisabled = 1;
 		}
 		if ((lastButtons & KEY_L) && (lastButtons & KEY_R) && (lastButtons & KEY_DUP) && (touch.px > 0) && confirmationsDisabled) {
-			printf("Bottom screen mirror ENABLED\n");
+			printf("Bottom screen mirror ENABLED %d\n", frame);
 			confirmationsDisabled = 0;
-			char b = 1;
-			send(sock, &b, 1, 0);
+			send(sock, &frame, 1, 0);
 		}
 		gfxFlushBuffers();
 		gfxSwapBuffers();
@@ -312,11 +310,12 @@ int main(int argc, char **argv) {
 				sendInputs(socketInputs);
 				continue;
 			}
-			if (!confirmationsDisabled && header.requireConfirmation) {
-				char b = 1;
-				send(sock, &b, 1, 0);
-			}
+			++frame;
 			data.rd = 0;
+
+			if (!confirmationsDisabled && (frame & 1)) {
+				send(sock, &frame, 1, 0);
+			}
 		}
 
 		u16 headerSz = 2;
@@ -411,6 +410,9 @@ int main(int argc, char **argv) {
 
 		header.rd = 0;
 		sendInputs(socketInputs);
+//		if (!confirmationsDisabled) {
+//			send(sock, &frame, 1, 0);
+//		}
 	}
 	close(socket);
 
